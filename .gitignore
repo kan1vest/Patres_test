@@ -2,3 +2,4 @@
 .dockerignore
 .idea
 .env
+src/config.py

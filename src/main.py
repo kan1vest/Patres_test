@@ -11,8 +11,10 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from router import router as books_router
 
+from queries.orm import AsyncORM
+
 async def main():
-    pass
+    await AsyncORM.create_tables()
 
 
 def create_fastapi_app():
