@@ -8,8 +8,8 @@ class UserLoginSсhema(BaseModel):
    email: EmailStr = Field(pattern=r".+@*\.ru$")
 
 class UserAuthSсhema(BaseModel):
-   email: EmailStr = Field('Nik@example.com', pattern=r".+@*\.ru$")
-   password: str = Field('ADMIN')
+   email: EmailStr = Field('Nik@yan.ru', pattern=r".+@*\.ru$")
+   password: Optional[str] = None
 
 
 

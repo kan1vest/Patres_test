@@ -31,7 +31,7 @@ class AsyncORM:
 
 
     @staticmethod
-    async def select_users_registration(email):
+    async def select_user(email):
         async with async_session_factory() as session:
             query = (
                 select(UsersOrm.email)
