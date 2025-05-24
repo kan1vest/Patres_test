@@ -15,6 +15,7 @@ from queries.orm import AsyncORM
 
 async def main():
     await AsyncORM.create_tables()
+    await AsyncORM.insert_books()
 
 
 def create_fastapi_app():

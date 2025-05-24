@@ -5,7 +5,7 @@ from queries.orm import AsyncORM
 
 from authx import AuthX, AuthXConfig
 
-from schemas import UserLoginSсhema, UserAuthSсhema
+from schemas import BooksDeleteSсhema, BooksFilterSсhema, BooksUpdateSсhema, UserLoginSсhema, UserAuthSсhema, BooksSсhema
 
 from config import settings
 
@@ -70,6 +70,44 @@ async def login(creds: Annotated[UserAuthSсhema, Depends()], response: Response
         return {"msg": "Вы вошли в систему как читатель"}
     else:
         raise HTTPException(status_code=401, detail=f"Пароль не верен")
+    
+@router.post("/protected_admin/book/create", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def create_books(task: Annotated[BooksSсhema, Depends()]):
+   await AsyncORM.create_books(task.bookname, task.author, task.creat, task.ISBN, task.quantity)
+   return {
+    'msg': "Книга успешно добавлена",
+    'Имя': task.bookname,
+    'Автор': task.author,
+    'Год создания': task.creat,
+    'ISBN': task.ISBN,
+    'Количество': task.quantity
+   }
+
+
+@router.get("/protected_admin/book/read", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def read_books(books_filter: Annotated[BooksFilterSсhema, Depends()], response: Response):
+    res = await AsyncORM.select_books(books_filter)
+    if res == []:
+        return {
+    'msg': "Книга не найдена",
+    'Имя': books_filter.booknames, 
+    'Автор':   books_filter.authors 
+   }
+    else:
+        return res
+    
+
+
+@router.put("/protected_admin/book/", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def update_books(updates: Annotated[BooksUpdateSсhema, Depends()]):
+    res = await AsyncORM.update_book(updates)
+    return {'msg': f'Книга с параметрами {res[0]}, изменена на книгу с параметрами {res[1]}'}
+
+
+@router.delete("/protected_admin/book/", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def delete_books(delete: Annotated[BooksDeleteSсhema, Depends()]):
+    res = await AsyncORM.delete_book(delete)
+    return {'msg': f'Книга с параметрами {res} успешно удалена'}
     
 
 
