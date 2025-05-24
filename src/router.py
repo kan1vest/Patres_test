@@ -9,7 +9,7 @@ from schemas import UserLoginSсhema, UserAuthSсhema
 
 from config import settings
 
-""" from passlib.context import CryptContext """
+from passlib.context import CryptContext
 
 router = APIRouter()
 
@@ -33,38 +33,44 @@ config_admin.JWT_COOKIE_CSRF_PROTECT = False # РАЗОБРАТЬСЯ ИСПРА
 security_user = AuthX(config=config_user)
 security_admin = AuthX(config=config_admin)
 
-""" pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
 # Функция для проверки пароля
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password) """
+    return pwd_context.verify(plain_password, hashed_password)
 
 @router.post("/register/", tags=["Регистрация пользователей"])
 async def register_user(creds: Annotated[UserLoginSсhema, Depends()]):
     existing_user = await AsyncORM.select_user(creds.email)
     if existing_user:
         raise HTTPException(status_code=400, detail=f"Пользователь c email {creds.email} уже существует")
-    await AsyncORM.insert_users(creds.username, creds.email) # добавляем в базу пользователя и хешируем пароль
+    await AsyncORM.insert_users(creds.username, creds.email, creds.password) # добавляем в базу пользователя и хешируем пароль
     return {"msg": "Пользователь успешно зарегистрирован"}
 
 
 
-@router.post("/login", tags=["Авторизация"])
+@router.post("/auth", tags=["Авторизация"])
 async def login(creds: Annotated[UserAuthSсhema, Depends()], response: Response):
-    user = await AsyncORM.select_user(creds.email)
+    user = await AsyncORM.select_users_auth(creds.email)
+    print(user)
     if user is None:
-        raise HTTPException(status_code=401, detail=f"Пользователь c email {creds.email} не существует")
+        raise HTTPException(status_code=401, detail=f"Имя пользователя не верно")
+    verify = verify_password(creds.password, user[1])
+    admin = verify_password(creds.password, get_password_hash(settings.ADMIN_psw))
+    if admin:
+        token = security_admin.create_access_token(creds.email, audience='Admin')
+        response.set_cookie(config_admin.JWT_ACCESS_COOKIE_NAME, token)
+        return {"msg": "Вы вошли в систему как администратор"}
+    elif verify:
+        token = security_user.create_access_token(creds.email, audience='User')
+        response.set_cookie(config_user.JWT_ACCESS_COOKIE_NAME, token)
+        return {"msg": "Вы вошли в систему как читатель"}
     else:
-        if creds.password == 'ADMIN':
-            """ admin = verify_password(creds.password, get_password_hash(settings.ADMIN_psw)) """
-            token = security_admin.create_access_token(creds.email, audience='Admin')
-            response.set_cookie(config_admin.JWT_ACCESS_COOKIE_NAME, token)
-            return {"msg": "Вы вошли в систему как администратор"}
-        else:
-            token = security_user.create_access_token(creds.email, audience='User')
-            response.set_cookie(config_user.JWT_ACCESS_COOKIE_NAME, token)
-            return {"msg": "Вы вошли в систему как читатель"}
+        raise HTTPException(status_code=401, detail=f"Пароль не верен")
+    
+
+
         
