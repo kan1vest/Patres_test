@@ -3,7 +3,7 @@ from typing import Annotated
 
 from queries.orm import AsyncORM
 
-from authx import AuthX, AuthXConfig
+from authx import AuthX, AuthXConfig, TokenPayload
 
 import schemas
 
@@ -55,17 +55,16 @@ async def register_user(creds: Annotated[schemas.UserLoginSсhema, Depends()]):
 @router.post("/auth", tags=["Авторизация"])
 async def login(creds: Annotated[schemas.UserAuthSсhema, Depends()], response: Response):
     user = await AsyncORM.select_users_auth(creds.email)
-    print(user)
     if user is None:
         raise HTTPException(status_code=401, detail=f"Имя пользователя не верно")
     verify = verify_password(creds.password, user[1])
     admin = verify_password(creds.password, get_password_hash(settings.ADMIN_psw))
     if admin:
-        token = security_admin.create_access_token(creds.email, audience='Admin')
+        token = security_admin.create_access_token(uid = str(user[2]), audience='Admin')
         response.set_cookie(config_admin.JWT_ACCESS_COOKIE_NAME, token)
         return {"msg": "Вы вошли в систему как администратор"}
     elif verify:
-        token = security_user.create_access_token(creds.email, audience='User')
+        token = security_user.create_access_token(uid = str(user[2]), audience='User')
         response.set_cookie(config_user.JWT_ACCESS_COOKIE_NAME, token)
         return {"msg": "Вы вошли в систему как читатель"}
     else:
@@ -147,6 +146,33 @@ async def update_author(updates: Annotated[schemas.UserUpdateSсhema, Depends()]
 async def delete_author(delete_data: Annotated[schemas.UserDeleteSсhema, Depends()]):
     res = await AsyncORM.delete_user(delete_data)
     return res
+
+@router.get("/protected_user/user/get_book", tags=["Выдача книг"], dependencies=[Depends(security_user.access_token_required)])
+async def get_book(books_filter: Annotated[schemas.BookFilterSсhema, Depends()], payload: TokenPayload = Depends(security_user.access_token_required)):
+    res = await AsyncORM.get_book(books_filter.bookname, reader_id = int(payload.sub))    
+    if res == None:
+        return {
+    'msg': f"К сожелению книги {books_filter.bookname} закончились, выберете другую",
+   }
+    elif res == 'Flag':
+        return {
+    'msg': "К сожелению у Вас 3 и более книг на руках, верните одну из них"
+        }
+    else:
+        return f"{res['bookname']} успешно выдана читателю, остаток {res['quantity']} книг"
+    
+
+@router.get("/protected_user/user/return_book", tags=["Возват книг"], dependencies=[Depends(security_user.access_token_required)])
+async def get_book(books_filter: Annotated[schemas.BookFilterSсhema, Depends()], payload: TokenPayload = Depends(security_user.access_token_required)):
+    res = await AsyncORM.return_book(books_filter.bookname, reader_id = int(payload.sub))    
+    if res == None:
+        return {
+    'msg': f"Книги с названием {books_filter.bookname} у Вас нет, возможно вы уже вернули их или ошиблись в названии",
+   }
+    else:
+        return f"{res['bookname']} успешно возвращена, остаток {res['quantity']} книг"
+        
+
     
 
 

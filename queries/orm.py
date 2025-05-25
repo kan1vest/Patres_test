@@ -1,9 +1,13 @@
 
+from asyncio.windows_events import NULL
+from csv import reader
+import datetime 
+from statistics import quantiles
 from psycopg2 import IntegrityError
-from sqlalchemy import and_, delete, or_, select, true
+from sqlalchemy import Null, and_, delete, select, true
 import sqlalchemy
 from database import Base, async_engine, async_session_factory
-from models import UsersOrm, BooksOrm
+from models import BorrowedBooksOrm, UsersOrm, BooksOrm
 
 
 from passlib.context import CryptContext
@@ -48,8 +52,8 @@ class AsyncORM:
     async def select_users_auth(email):
         async with async_session_factory() as session:
             query = (
-                select(UsersOrm.email, UsersOrm.hashed_password)
-                .filter_by(email=email)
+                select(UsersOrm.email, UsersOrm.hashed_password, UsersOrm.id)
+                .filter_by(email = email)
             )
             res = await session.execute(query)
             result = res.first()
@@ -253,5 +257,61 @@ class AsyncORM:
             email = result[0].email
             await session.commit()
             return {
-                'Удален gjпьзователь с email':  email
+                'Удален пользователь с email':  email
             }         
+        
+
+    @staticmethod
+    async def get_book(book, reader_id):
+        async with async_session_factory() as session:
+            sbq = select(BorrowedBooksOrm).where(BorrowedBooksOrm.reader_id == reader_id)
+            reader_books = await session.execute(sbq)
+            if len(reader_books.all()) >= 3:
+                return 'Flag'
+            query = (
+                select(BooksOrm.id)
+                .filter_by(
+                        bookname = book
+                )
+            )
+            res = await session.execute(query)
+            upd_id = res.first() # получаем id для изменения данных в таблице
+            upd = await session.get(BooksOrm, upd_id[0])
+            if upd.quantity == 0:
+                return None
+            upd.quantity -= 1
+            book = {'bookname' : upd.bookname,
+                    'author': upd.author,
+                    'creat': upd.creat,
+                    'quantity': upd.quantity}
+            session.add(BorrowedBooksOrm(book_id = upd.id, reader_id = reader_id))
+            await session.flush()
+            await session.commit()
+            return book
+        
+
+    @staticmethod
+    async def return_book(bookname, reader_id):
+        async with async_session_factory() as session:
+            query = select(BooksOrm.id).filter_by(bookname = bookname)
+            book = await session.execute(query)
+            book_id = book.first() # получаем id книги для изменения данных в таблице
+            sbq = select(BorrowedBooksOrm.id).where(and_(BorrowedBooksOrm.book_id == book_id[0], BorrowedBooksOrm.reader_id == reader_id, 
+                                                 BorrowedBooksOrm.return_date == 'NULL'))
+            reader_books_sbq = await session.execute(sbq)
+            reader_books = reader_books_sbq.first()
+            if reader_books:
+                upd = await session.get(BooksOrm, book_id[0])
+                upd.quantity += 1
+                upd_Borrowed = await session.get(BorrowedBooksOrm, reader_books[0])
+                upd_Borrowed.return_date = str(datetime.datetime.now())
+            else:
+                return None
+            book = {'bookname' : upd.bookname,
+                    'author': upd.author,
+                    'creat': upd.creat,
+                    'quantity': upd.quantity}
+            await session.flush()
+            await session.commit()
+            return book
+        

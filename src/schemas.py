@@ -11,7 +11,7 @@ class UserLoginSсhema(BaseModel):
 
 class UserAuthSсhema(BaseModel):
    email: EmailStr = Field('Nik@yan.ru', pattern=r".+@*\.ru$")
-   password: Optional[str] = Field('ADMIN')
+   password: Optional[str] = Field('11111')
 
 
 
@@ -61,3 +61,8 @@ class UserUpdateSсhema(BaseModel):
 
 class UserDeleteSсhema(BaseModel):
    email: EmailStr = Field(pattern=r".+@*\.ru$")
+
+
+class BookFilterSсhema(BaseModel):
+   bookname: Optional[str] = Field('book_1', pattern=r"^\S*$")
+   
