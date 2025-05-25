@@ -171,6 +171,22 @@ async def get_book(books_filter: Annotated[schemas.BookFilterSсhema, Depends()]
    }
     else:
         return f"{res['bookname']} успешно возвращена, остаток {res['quantity']} книг"
+    
+
+@router.get("/protected_user/user/list_books", tags=["Список книг"], dependencies=[Depends(security_user.access_token_required)])
+async def get_book():
+    return await AsyncORM.list_books()
+        
+
+@router.get("/protected_user/user/list_book_of_reader", tags=["Список книг читателя"], dependencies=[Depends(security_user.access_token_required)])
+async def get_book(payload: TokenPayload = Depends(security_user.access_token_required)):
+    res = await AsyncORM.list_books_of_reader(reader_id = int(payload.sub))    
+    if res == None:
+        return {
+    'msg': "У Вас нет книг",
+   }
+    else:
+        return res
         
 
     

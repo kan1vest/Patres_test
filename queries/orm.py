@@ -315,3 +315,33 @@ class AsyncORM:
             await session.commit()
             return book
         
+
+    @staticmethod
+    async def list_books():
+        async with async_session_factory() as session:
+            query = select(BooksOrm)
+            res = await session.execute(query)
+            result = res.scalars().all()
+            return result
+        
+
+    @staticmethod
+    async def list_books_of_reader(reader_id):
+        async with async_session_factory() as session:
+            sbq = select(BorrowedBooksOrm.book_id).where(and_(BorrowedBooksOrm.reader_id == reader_id, 
+                                                 BorrowedBooksOrm.return_date == 'NULL'))
+            reader_books_sbq = await session.execute(sbq)
+            reader_books = reader_books_sbq.all()
+            book_id = [x[0] for x in reader_books]
+            if reader_books:
+                query = (
+                select(BooksOrm)
+                .where(BooksOrm.id.in_(book_id))
+                )
+                res = await session.execute(query)
+                result = res.scalars().all()
+                print(result)
+            else:
+                return None
+            return result
+        
