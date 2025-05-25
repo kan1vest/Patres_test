@@ -1,4 +1,5 @@
 
+import email
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -40,3 +41,23 @@ class BooksUpdateSсhema(BaseModel):
 
 class BooksDeleteSсhema(BaseModel):
    bookname: Optional[str] = Field('book_1', pattern=r"^\S*$")
+
+
+class UserSсhema(BaseModel):
+   username: str
+   email: EmailStr = Field(pattern=r".+@*\.ru$")
+   password: str
+
+
+class UserFilterSсhema(BaseModel):
+   email: EmailStr = Field(pattern=r".+@*\.ru$")
+
+
+class UserUpdateSсhema(BaseModel):
+   username_new: Optional[str] = Field(None, pattern=r"^\S*$")
+   email: EmailStr = Field(pattern=r".+@*\.ru$")
+   email_new: EmailStr = Field(None, pattern=r".+@*\.ru$")
+   password_new: Optional[str] = Field(None)
+
+class UserDeleteSсhema(BaseModel):
+   email: EmailStr = Field(pattern=r".+@*\.ru$")

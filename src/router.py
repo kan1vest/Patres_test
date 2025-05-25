@@ -5,7 +5,7 @@ from queries.orm import AsyncORM
 
 from authx import AuthX, AuthXConfig
 
-from schemas import BooksDeleteSсhema, BooksFilterSсhema, BooksUpdateSсhema, UserLoginSсhema, UserAuthSсhema, BooksSсhema
+import schemas
 
 from config import settings
 
@@ -43,7 +43,7 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 @router.post("/register/", tags=["Регистрация пользователей"])
-async def register_user(creds: Annotated[UserLoginSсhema, Depends()]):
+async def register_user(creds: Annotated[schemas.UserLoginSсhema, Depends()]):
     existing_user = await AsyncORM.select_user(creds.email)
     if existing_user:
         raise HTTPException(status_code=400, detail=f"Пользователь c email {creds.email} уже существует")
@@ -53,7 +53,7 @@ async def register_user(creds: Annotated[UserLoginSсhema, Depends()]):
 
 
 @router.post("/auth", tags=["Авторизация"])
-async def login(creds: Annotated[UserAuthSсhema, Depends()], response: Response):
+async def login(creds: Annotated[schemas.UserAuthSсhema, Depends()], response: Response):
     user = await AsyncORM.select_users_auth(creds.email)
     print(user)
     if user is None:
@@ -71,8 +71,12 @@ async def login(creds: Annotated[UserAuthSсhema, Depends()], response: Response
     else:
         raise HTTPException(status_code=401, detail=f"Пароль не верен")
     
+
+
+
+
 @router.post("/protected_admin/book/create", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
-async def create_books(task: Annotated[BooksSсhema, Depends()]):
+async def create_books(task: Annotated[schemas.BooksSсhema, Depends()]):
    await AsyncORM.create_books(task.bookname, task.author, task.creat, task.ISBN, task.quantity)
    return {
     'msg': "Книга успешно добавлена",
@@ -85,7 +89,7 @@ async def create_books(task: Annotated[BooksSсhema, Depends()]):
 
 
 @router.get("/protected_admin/book/read", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
-async def read_books(books_filter: Annotated[BooksFilterSсhema, Depends()], response: Response):
+async def read_books(books_filter: Annotated[schemas.BooksFilterSсhema, Depends()], response: Response):
     res = await AsyncORM.select_books(books_filter)
     if res == []:
         return {
@@ -98,16 +102,51 @@ async def read_books(books_filter: Annotated[BooksFilterSсhema, Depends()], res
     
 
 
-@router.put("/protected_admin/book/", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
-async def update_books(updates: Annotated[BooksUpdateSсhema, Depends()]):
+@router.put("/protected_admin/book/update", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def update_books(updates: Annotated[schemas.BooksUpdateSсhema, Depends()]):
     res = await AsyncORM.update_book(updates)
     return {'msg': f'Книга с параметрами {res[0]}, изменена на книгу с параметрами {res[1]}'}
 
 
-@router.delete("/protected_admin/book/", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
-async def delete_books(delete: Annotated[BooksDeleteSсhema, Depends()]):
+@router.delete("/protected_admin/book/delete", tags=["CRUD для книг"], dependencies=[Depends(security_admin.access_token_required)])
+async def delete_books(delete: Annotated[schemas.BooksDeleteSсhema, Depends()]):
     res = await AsyncORM.delete_book(delete)
     return {'msg': f'Книга с параметрами {res} успешно удалена'}
+
+
+
+
+
+
+@router.post("/protected_admin/user/create", tags=["CRUD для пользователей"], dependencies=[Depends(security_admin.access_token_required)])
+async def create_user(task: Annotated[schemas.UserSсhema, Depends()]):
+   await AsyncORM.create_user(task.username, task.email, task.password)
+   return {'msg': f'Автор с параметрами {task.username, task.email, task.password} успешно добавлен'}
+
+
+
+@router.get("/protected_admin/user/read", tags=["CRUD для пользователей"], dependencies=[Depends(security_admin.access_token_required)])
+async def read_user(filter: Annotated[schemas.UserFilterSсhema, Depends()]):
+    res = await AsyncORM.select_user(filter.email)
+    if res == []:
+        return {
+    'msg': "Пользователь не найден",
+    'Имя': filter.email
+   }
+    else:
+        return {'Имя': res.username, 'email': res.email}
+    
+
+@router.put("/protected_admin/user/update", tags=["CRUD для пользователей"], dependencies=[Depends(security_admin.access_token_required)])
+async def update_author(updates: Annotated[schemas.UserUpdateSсhema, Depends()]):
+    res = await AsyncORM.update_user(updates)
+    return {'msg': f'Пользователь с параметрами {res[0]}, изменен на пользователя с параметрами {res[1]}'}
+
+
+@router.delete("/protected_admin/user/delete", tags=["CRUD для пользователей"], dependencies=[Depends(security_admin.access_token_required)])
+async def delete_author(delete_data: Annotated[schemas.UserDeleteSсhema, Depends()]):
+    res = await AsyncORM.delete_user(delete_data)
+    return res
     
 
 

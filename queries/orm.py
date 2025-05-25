@@ -167,4 +167,91 @@ class AsyncORM:
             result = res.scalars().all()
             await session.commit()
             return result   
-            
+    
+
+    @staticmethod
+    async def insert_users_test():
+        async with async_session_factory() as session:
+            user_1 = UsersOrm(username = 'user_1', email = 'email_1@yan.ru', hashed_password = get_password_hash("password_1"))
+            user_2 = UsersOrm(username='user_2', email = 'email_2@yan.ru', hashed_password = get_password_hash("password_2"))
+            user_3 = UsersOrm(username='user_3', email = 'email_3@yan.ru', hashed_password = get_password_hash("password_3"))
+            user_4 = UsersOrm(username='user_4', email = 'email_4@yan.ru', hashed_password = get_password_hash("password_4"))
+            session.add_all([user_1, user_2, user_3, user_4])
+            await session.flush() 
+            await session.commit()
+
+    @staticmethod
+    async def create_user(username, email, password):
+        async with async_session_factory() as session:
+            user = UsersOrm(username = username, email = email, hashed_password = get_password_hash(password))
+            # добавляем пьользователя в сессию
+            session.add(user)
+            await session.flush() 
+            await session.commit()
+
+
+    @staticmethod
+    async def select_user(email):
+        async with async_session_factory() as session:
+            query = (
+                select(UsersOrm)
+                .where(UsersOrm.email == email)
+            )
+            res = await session.execute(query)
+            result = res.scalars().first()
+            return result
+
+
+    @staticmethod
+    async def update_user(updates):
+        async with async_session_factory() as session:
+            query = (
+                select(UsersOrm.id)
+                .where(
+                    UsersOrm.email == updates.email
+                )
+                    )
+            res = await session.execute(query)
+            upd_id = res.first()
+            upd = await session.get(UsersOrm, upd_id[0])
+            user = {
+                'Имя': upd.username, 
+                'email': upd.email,  
+            }
+            if updates.username_new:
+                upd.username = updates.username_new
+            if updates.email_new:
+                upd.email = updates.email_new
+            if updates.password_new:
+                upd.password = get_password_hash(updates.password_new)
+            user_update = {
+                'Имя': upd.username, 
+                'Email': upd.email,
+            }
+            await session.flush()
+            await session.commit()
+            return user, user_update
+
+    @staticmethod
+    async def delete_user(delete_data):
+        async with async_session_factory() as session:
+            query_select = (
+                select(UsersOrm)
+                .filter(
+                    UsersOrm.email.contains(delete_data.email)
+                    )
+            )
+            query_delete = (
+                delete(UsersOrm)
+                .filter(
+                    UsersOrm.email.contains(delete_data.email)
+                    )
+            )
+            res = await session.execute(query_select)
+            await session.execute(query_delete)
+            result = res.scalars().all()
+            email = result[0].email
+            await session.commit()
+            return {
+                'Удален gjпьзователь с email':  email
+            }         
